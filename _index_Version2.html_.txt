@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBSS - Mwananchi Business Support System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2ecc71;
+            --secondary-color: #3498db;
+            --danger-color: #e74c3c;
+            --success-color: #27ae60;
+            --text-color: #2c3e50;
+            --text-light: #7f8c8d;
+            --bg-light: #ecf0f1;
+            --bg-white: #ffffff;
+            --border-color: #bdc3c7;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-theme {
+            --text-color: #ecf0f1;
+            --text-light: #bdc3c7;
+            --bg-light: #2c3e50;
+            --bg-white: #34495e;
+            --border-color: #7f8c8d;
+        }
+
+        body.neon-theme {
+            --primary-color: #00ff00;
+            --secondary-color: #00ffff;
+            --danger-color: #ff0080;
+            --text-color: #00ff00;
+            --bg-light: #0a0e27;
+            --bg-white: #1a1f3a;
+        }
+
+        html, body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        /* ========== NAVBAR ========== */
+        .navbar {
+            background-color: var(--bg-white);
+            padding: 15px 0;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 25px;
+            align-items: center;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-color);
+            transition: all 0.3s ease;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+
+        .user-welcome {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .theme-toggle {
+            margin-left: 20px;
+        }
+
+        .theme-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .theme-btn:hover {
+            transform: rotate(20deg);
+        }
+
+        /* ========== BUTTONS ========== */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-lg {
+            padding: 15px 40px;
+            font-size: 18px;
+        }
+
+        /* ========== HERO SECTION ========== */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+
+        .hero-content h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .hero-subtitle {
+            font-size: 24px;
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+
+        .hero-description {
+            font-size: 16px;
+            color: var(--text-color);
+            margin-bottom: 30px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .hero-illustration {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 150px;
+            animation: bounce 3s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        /* ========== FEATURES SECTION ========== */
+        .features {
+            background: var(--bg-white);
+            padding: 80px 20px;
+            margin: 60px 0;
+        }
+
+        .section-title {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 50px;
+            color: var(--text-color);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: var(--bg-light);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-10px);
+            box-shadow: 0 10px 30px rgba(46, 204, 113, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: var(--text-light);
+        }
+
+        /* ========== AUTH CONTAINER ========== */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 100px);
+            padding: 20px;
+        }
+
+        .auth-box {
+            background: var(--bg-white);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .auth-header p {
+            color: var(--text-light);
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background-color: var(--bg-light);
+            color: var(--text-color);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.2);
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: var(--danger-color);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid var(--danger-color);
+            display: none;
+        }
+
+        .success-message {
+            background: #e6ffe6;
+            color: var(--success-color);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid var(--success-color);
+            display: none;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-light);
+        }
+
+        .auth-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* ========== DASHBOARD ========== */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .dashboard-sidebar {
+            background: var(--bg-white);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            height: fit-content;
+            position: sticky;
+            top: 80px;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .menu-list {
+            list-style: none;
+        }
+
+        .menu-link {
+            display: block;
+            padding: 12px 15px;
+            text-decoration: none;
+            color: var(--text-color);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .menu-link:hover,
+        .menu-link.active {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .dashboard-main {
+            background: var(--bg-white);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .dashboard-section {
+            display: none;
+        }
+
+        .dashboard-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        .section-header h2 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .section-header p {
+            color: var(--text-light);
+        }
+
+        /* ========== PRODUCTS GRID ========== */
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: var(--bg-light);
+            color: var(--text-color);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .category-filter {
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: var(--bg-light);
+            color: var(--text-color);
+        }
+
+        .category-filter:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            background: var(--bg-light);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 30px rgba(46, 204, 113, 0.2);
+        }
+
+        .product-image {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+        }
+
+        .product-info {
+            padding: 20px;
+        }
+
+        .product-info h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        .product-category {
+            display: inline-block;
+            background: var(--primary-color);
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .product-description {
+            color: var(--text-light);
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .product-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .product-price {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 16px;
+        }
+
+        .product-seller {
+            color: var(--text-light);
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-light);
+            padding: 40px 20px;
+            font-size: 16px;
+        }
+
+        /* ========== MODAL ========== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background-color: var(--bg-white);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--danger-color);
+        }
+
+        /* ========== PRODUCT DETAIL ========== */
+        .product-detail-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .product-detail-image {
+            font-size: 100px;
+            text-align: center;
+        }
+
+        .product-detail-content h2 {
+            font-size: 28px;
+            color: var(--text-color);
+        }
+
+        .product-category-badge {
+            display: inline-block;
+            background: var(--primary-color);
+            color: #000;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .product-full-description {
+            color: var(--text-light);
+            line-height: 1.8;
+        }
+
+        .product-meta {
+            background: var(--bg-light);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .meta-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .meta-value {
+            color: var(--text-light);
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .product-actions .btn {
+            flex: 1;
+        }
+
+        /* ========== FOOTER ========== */
+        .footer {
+            background: var(--bg-white);
+            padding: 30px 20px;
+            text-align: center;
+            color: var(--text-light);
+            margin-top: 60px;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-sidebar {
+                position: relative;
+                top: 0;
+            }
+
+            .hero {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-illustration {
+                font-size: 100px;
+            }
+
+            .hero-content h1 {
+                font-size: 32px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                gap: 10px;
+                font-size: 14px;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .product-actions {
+                flex-direction: column;
+            }
+
+            .search-container {
+                flex-direction: column;
+            }
+
+            .search-input, .category-filter {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo" onclick="goHome()">
+                <span class="logo-icon">🏪</span>
+                <span>MBSS</span>
+            </div>
+            <ul class="nav-links" id="navLinks"></ul>
+            <div class="theme-toggle">
+                <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div id="mainContent">
+        <!-- HOME PAGE -->
+        <section id="home" class="dashboard-section active">
+            <div class="hero">
+                <div class="hero-content">
+                    <h1>Mwananchi Business Support System</h1>
+                    <p class="hero-subtitle">Connecting Local Buyers and Sellers</p>
+                    <p class="hero-description">
+                        Empowering mama mboga, jua kali artisans, and youth entrepreneurs with a secure digital marketplace.
+                    </p>
+                    <div class="hero-buttons">
+                        <button onclick="showSection('login')" class="btn btn-primary btn-lg">Login</button>
+                        <button onclick="showSection('register')" class="btn btn-secondary btn-lg">Register</button>
+                    </div>
+                </div>
+                <div class="hero-illustration">🛍️</div>
+            </div>
+
+            <section class="features">
+                <h2 class="section-title">Why Choose MBSS?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <h3>Smart Search</h3>
+                        <p>Find products instantly with intelligent keyword-based search</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💬</div>
+                        <h3>Secure Messaging</h3>
+                        <p>Chat safely with buyers and sellers directly in the platform</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <h3>WhatsApp Integration</h3>
+                        <p>Transition smoothly to WhatsApp for meetups and transactions</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🌐</div>
+                        <h3>Works Offline</h3>
+                        <p>Access on localhost - perfect for low-bandwidth areas</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📦</div>
+                        <h3>Easy Listing</h3>
+                        <p>Sell your products with simple, intuitive listing process</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h3>Beautiful Design</h3>
+                        <p>Light, Dark, and Neon modes for every user preference</p>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <!-- LOGIN PAGE -->
+        <section id="login" class="dashboard-section">
+            <div class="auth-container">
+                <div class="auth-box">
+                    <div class="auth-header">
+                        <h1>Welcome Back</h1>
+                        <p>Login to your MBSS account</p>
+                    </div>
+
+                    <form class="auth-form" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="loginUsername">Username</label>
+                            <input type="text" id="loginUsername" required placeholder="Enter your username">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" required placeholder="Enter your password">
+                        </div>
+
+                        <div id="loginError" class="error-message"></div>
+                        <div id="loginSuccess" class="success-message"></div>
+
+                        <button type="submit" class="btn btn-primary btn-block">Login</button>
+                    </form>
+
+                    <div class="auth-footer">
+                        <p>Don't have an account? <a onclick="showSection('register')">Register here</a></p>
+                        <p><a onclick="showSection('home')">Back to Home</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- REGISTER PAGE -->
+        <section id="register" class="dashboard-section">
+            <div class="auth-container">
+                <div class="auth-box">
+                    <div class="auth-header">
+                        <h1>Create Account</h1>
+                        <p>Join MBSS and start trading today</p>
+                    </div>
+
+                    <form class="auth-form" onsubmit="handleRegister(event)">
+                        <div class="form-group">
+                            <label for="regUsername">Username</label>
+                            <input type="text" id="regUsername" required placeholder="Choose a username">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="regEmail">Email</label>
+                            <input type="email" id="regEmail" required placeholder="Enter your email">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="regPassword">Password</label>
+                            <input type="password" id="regPassword" required placeholder="Create a password">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="regRole">I am a:</label>
+                            <select id="regRole" required>
+                                <option value="">-- Select --</option>
+                                <option value="buyer">Buyer</option>
+                                <option value="seller">Seller</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="regPhone">Phone Number</label>
+                            <input type="tel" id="regPhone" placeholder="Your phone number">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="regLocation">Location</label>
+                            <input type="text" id="regLocation" placeholder="Your location (e.g., Nairobi)">
+                        </div>
+
+                        <div id="regError" class="error-message"></div>
+                        <div id="regSuccess" class="success-message"></div>
+
+                        <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+                    </form>
+
+                    <div class="auth-footer">
+                        <p>Already have an account? <a onclick="showSection('login')">Login here</a></p>
+                        <p><a onclick="showSection('home')">Back to Home</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="dashboard-section" style="display: none;">
+            <div class="dashboard-container">
+                <aside class="dashboard-sidebar">
+                    <div class="sidebar-menu">
+                        <h3 class="sidebar-title">Menu</h3>
+                        <ul class="menu-list">
+                            <li><a onclick="showDashSection('explore')" class="menu-link active">🔍 Explore Products</a></li>
+                            <li id="myProductsMenu" style="display: none;"><a onclick="showDashSection('myproducts')" class="menu-link">📦 My Products</a></li>
+                            <li id="addProductMenu" style="display: none;"><a onclick="showDashSection('addproduct')" class="menu-link">➕ Add Product</a></li>
+                            <li><a onclick="showDashSection('chats')" class="menu-link">💬 Messages</a></li>
+                        </ul>
+                    </div>
+                </aside>
+
+                <main class="dashboard-main">
+                    <!-- EXPLORE PRODUCTS -->
+                    <section id="explore" class="dashboard-section active">
+                        <div class="section-header">
+                            <h2>Explore Products</h2>
+                            <p>Discover amazing products from local sellers</p>
+                        </div>
+
+                        <div class="search-container">
+                            <input type="text" id="searchInput" placeholder="Search for products..." class="search-input">
+                            <select id="categoryFilter" class="category-filter">
+                                <option value="">All Categories</option>
+                            </select>
+                            <button onclick="performSearch()" class="btn btn-primary">Search</button>
+                        </div>
+
+                        <div id="productsGrid" class="products-grid">
+                            <div class="no-data">Loading products...</div>
+                        </div>
+                    </section>
+
+                    <!-- MY PRODUCTS (Seller Only) -->
+                    <section id="myproducts" class="dashboard-section" style="display: none;">
+                        <div class="section-header">
+                            <h2>My Products</h2>
+                            <p>Manage your product listings</p>
+                        </div>
+                        <div id="myProductsGrid" class="products-grid"></div>
+                    </section>
+
+                    <!-- ADD PRODUCT (Seller Only) -->
+                    <section id="addproduct" class="dashboard-section" style="display: none;">
+                        <div class="section-header">
+                            <h2>Add New Product</h2>
+                            <p>List your product and start selling</p>
+                        </div>
+
+                        <form id="addProductForm" class="auth-form" onsubmit="handleAddProduct(event)" style="max-width: 500px;">
+                            <div class="form-group">
+                                <label for="productName">Product Name *</label>
+                                <input type="text" id="productName" required placeholder="e.g., Fresh Tomatoes">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="description">Description *</label>
+                                <textarea id="description" required placeholder="Describe your product..." style="min-height: 100px;"></textarea>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="form-group">
+                                    <label for="category">Category *</label>
+                                    <input type="text" id="category" required placeholder="e.g., Vegetables">
+                                </div>
+                                <div class="form-group">
+                                    <label for="price">Price (KES) *</label>
+                                    <input type="number" id="price" required placeholder="100">
+                                </div>
+                            </div>
+
+                            <div id="addProductError" class="error-message"></div>
+                            <div id="addProductSuccess" class="success-message"></div>
+
+                            <button type="submit" class="btn btn-primary">Add Product</button>
+                        </form>
+                    </section>
+
+                    <!-- MESSAGES -->
+                    <section id="chats" class="dashboard-section" style="display: none;">
+                        <div class="section-header">
+                            <h2>Messages</h2>
+                            <p>Chat with buyers and sellers</p>
+                        </div>
+                        <div id="messagesContainer" class="no-data">
+                            <p>No messages yet. Start a conversation by viewing a product!</p>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeProductModal()">×</span>
+            <div id="productDetail" class="product-detail-content"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer" id="footer">
+        <p>&copy; 2026 Mwananchi Business Support System. All rights reserved.</p>
+        <p>Making local commerce digital, accessible, and profitable.</p>
+    </footer>
+
+    <script>
+        // ========== STORAGE SYSTEM ==========
+        const Store = {
+            users: [
+                {
+                    id: 1,
+                    username: 'demo_buyer',
+                    email: 'buyer@demo.com',
+                    password: 'demo123',
+                    role: 'buyer',
+                    phone: '0712345678',
+                    location: 'Nairobi'
+                },
+                {
+                    id: 2,
+                    username: 'demo_seller',
+                    email: 'seller@demo.com',
+                    password: 'demo123',
+                    role: 'seller',
+                    phone: '0787654321',
+                    location: 'Nairobi'
+                }
+            ],
+            products: [
+                {
+                    id: 1,
+                    seller_id: 2,
+                    product_name: 'Fresh Tomatoes',
+                    description: 'High quality fresh tomatoes from local farms',
+                    category: 'Vegetables',
+                    price: 150,
+                    availability: 'available',
+                    seller_name: 'demo_seller',
+                    phone_number: '0787654321',
+                    location: 'Nairobi'
+                },
+                {
+                    id: 2,
+                    seller_id: 2,
+                    product_name: 'Handmade Baskets',
+                    description: 'Beautiful handcrafted baskets perfect for storage',
+                    category: 'Crafts',
+                    price: 500,
+                    availability: 'available',
+                    seller_name: 'demo_seller',
+                    phone_number: '0787654321',
+                    location: 'Nairobi'
+                },
+                {
+                    id: 3,
+                    seller_id: 2,
+                    product_name: 'Avocado',
+                    description: 'Ripe, creamy avocados ready to eat',
+                    category: 'Vegetables',
+                    price: 80,
+                    availability: 'available',
+                    seller_name: 'demo_seller',
+                    phone_number: '0787654321',
+                    location: 'Nairobi'
+                }
+            ],
+            chats: [],
+
+            getUser: function(username) {
+                return this.users.find(u => u.username === username);
+            },
+
+            addUser: function(user) {
+                user.id = Math.max(...this.users.map(u => u.id), 0) + 1;
+                this.users.push(user);
+                return user;
+            },
+
+            getAllProducts: function() {
+                return this.products;
+            },
+
+            searchProducts: function(keyword, category = '') {
+                return this.products.filter(p => {
+                    const keywordMatch = keyword.toLowerCase() ? 
+                        p.product_name.toLowerCase().includes(keyword.toLowerCase()) ||
+                        p.description.toLowerCase().includes(keyword.toLowerCase()) ||
+                        p.category.toLowerCase().includes(keyword.toLowerCase()) : true;
+                    
+                    const categoryMatch = category ? 
+                        p.category.toLowerCase() === category.toLowerCase() : true;
+                    
+                    return keywordMatch && categoryMatch;
+                });
+            },
+
+            getCategories: function() {
+                return [...new Set(this.products.map(p => p.category))];
+            },
+
+            addProduct: function(product) {
+                product.id = Math.max(...this.products.map(p => p.id), 0) + 1;
+                this.products.push(product);
+                return product;
+            },
+
+            getSellerProducts: function(sellerId) {
+                return this.products.filter(p => p.seller_id === sellerId);
+            }
+        };
+
+        // ========== STATE ==========
+        let currentUser = null;
+
+        // ========== THEME MANAGEMENT ==========
+        function toggleTheme() {
+            const body = document.body;
+            const themes = ['light-theme', 'dark-theme', 'neon-theme'];
+            let currentIndex = -1;
+
+            themes.forEach((theme, index) => {
+                if (body.classList.contains(theme)) {
+                    currentIndex = index;
+                }
+            });
+
+            body.classList.remove(...themes);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            body.classList.add(themes[nextIndex]);
+            localStorage.setItem('theme', themes[nextIndex]);
+        }
+
+        // ========== NAVIGATION ==========
+        function goHome() {
+            showSection('home');
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.dashboard-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+        }
+
+        function showDashSection(sectionId) {
+            document.querySelectorAll('.dashboard-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            document.querySelectorAll('.menu-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+            event.target.classList.add('active');
+
+            if (sectionId === 'myproducts') {
+                loadSellerProducts();
+            }
+        }
+
+        function updateNavigation() {
+            const navLinks = document.getElementById('navLinks');
+            if (currentUser) {
+                navLinks.innerHTML = `
+                    <li><span class="user-welcome">Welcome, ${currentUser.username} (${currentUser.role})</span></li>
+                    <li><a class="nav-link" onclick="logoutUser()">Logout</a></li>
+                `;
+                document.getElementById('dashboard').style.display = 'block';
+                
+                if (currentUser.role === 'seller') {
+                    document.getElementById('myProductsMenu').style.display = 'block';
+                    document.getElementById('addProductMenu').style.display = 'block';
+                }
+                
+                showSection('home');
+                setTimeout(() => {
+                    document.getElementById('dashboard').style.display = 'block';
+                    showDashboardView();
+                }, 500);
+            } else {
+                navLinks.innerHTML = `
+                    <li><a class="nav-link" onclick="showSection('login')">Login</a></li>
+                    <li><a class="nav-link" onclick="showSection('register')">Register</a></li>
+                `;
+                document.getElementById('dashboard').style.display = 'none';
+            }
+        }
+
+        function showDashboardView() {
+            showSection('home');
+            setTimeout(() => {
+                document.getElementById('dashboard').style.display = 'block';
+                showDashSection('explore');
+                loadCategories();
+                loadAllProducts();
+            }, 100);
+        }
+
+        // ========== AUTHENTICATION ==========
+        function handleLogin(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const user = Store.getUser(username);
+            const errorDiv = document.getElementById('loginError');
+            const successDiv = document.getElementById('loginSuccess');
+
+            if (!user) {
+                errorDiv.textContent = 'User not found';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (user.password !== password) {
+                errorDiv.textContent = 'Invalid password';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            
+            successDiv.textContent = 'Login successful!';
+            successDiv.style.display = 'block';
+            
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+            errorDiv.style.display = 'none';
+
+            updateNavigation();
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const role = document.getElementById('regRole').value;
+            const phone = document.getElementById('regPhone').value;
+            const location = document.getElementById('regLocation').value;
+
+            const errorDiv = document.getElementById('regError');
+            const successDiv = document.getElementById('regSuccess');
+
+            if (!username || !email || !password || !role) {
+                errorDiv.textContent = 'All required fields must be filled';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (Store.getUser(username)) {
+                errorDiv.textContent = 'Username already exists';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            const newUser = {
+                username,
+                email,
+                password,
+                role,
+                phone,
+                location
+            };
+
+            Store.addUser(newUser);
+            successDiv.textContent = 'Account created successfully! Please login.';
+            successDiv.style.display = 'block';
+
+            setTimeout(() => {
+                document.getElementById('regUsername').value = '';
+                document.getElementById('regEmail').value = '';
+                document.getElementById('regPassword').value = '';
+                document.getElementById('regRole').value = '';
+                document.getElementById('regPhone').value = '';
+                document.getElementById('regLocation').value = '';
+                successDiv.style.display = 'none';
+                showSection('login');
+            }, 1500);
+        }
+
+        function logoutUser() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            updateNavigation();
+            showSection('home');
+            document.getElementById('dashboard').style.display = 'none';
+        }
+
+        // ========== PRODUCTS ==========
+        function loadCategories() {
+            const categories = Store.getCategories();
+            const select = document.getElementById('categoryFilter');
+            select.innerHTML = '<option value="">All Categories</option>';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                select.appendChild(opt);
+            });
+        }
+
+        function loadAllProducts() {
+            const products = Store.getAllProducts();
+            displayProducts(products);
+        }
+
+        function performSearch() {
+            const keyword = document.getElementById('searchInput').value;
+            const category = document.getElementById('categoryFilter').value;
+
+            if (!keyword.trim()) {
+                loadAllProducts();
+                return;
+            }
+
+            const results = Store.searchProducts(keyword, category);
+            displayProducts(results);
+        }
+
+        function displayProducts(products) {
+            const grid = document.getElementById('productsGrid');
+
+            if (products.length === 0) {
+                grid.innerHTML = '<p class="no-data">No products found</p>';
+                return;
+            }
+
+            grid.innerHTML = products.map(p => `
+                <div class="product-card" onclick="openProductModal(${p.id}, ${p.seller_id}, '${p.product_name.replace(/'/g, "\\'")}', '${p.description.replace(/'/g, "\\'")}', '${p.category}', ${p.price}, '${p.seller_name}', '${p.phone_number}', '${p.location}')">
+                    <div class="product-image">📦</div>
+                    <div class="product-info">
+                        <h3>${p.product_name}</h3>
+                        <p class="product-category">${p.category}</p>
+                        <p class="product-description">${p.description.substring(0, 80)}...</p>
+                        <div class="product-footer">
+                            <span class="product-price">KES ${p.price}</span>
+                            <span class="product-seller">${p.seller_name}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openProductModal(id, sellerId, name, desc, cat, price, seller, phone, loc) {
+            const detail = document.getElementById('productDetail');
+            detail.innerHTML = `
+                <div class="product-detail-content">
+                    <div class="product-detail-image">📦</div>
+                    <h2>${name}</h2>
+                    <p class="product-category-badge">${cat}</p>
+                    <p class="product-full-description">${desc}</p>
+                    <div class="product-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Price:</span>
+                            <span class="meta-value">KES ${price}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Seller:</span>
+                            <span class="meta-value">${seller}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Location:</span>
+                            <span class="meta-value">${loc}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Phone:</span>
+                            <span class="meta-value">${phone}</span>
+                        </div>
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn btn-primary" onclick="openChatModal(${id}, ${sellerId}, '${seller}', '${phone}')">💬 Message</button>
+                        <a href="https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=Hi%20${seller}%2C%20I'm%20interested%20in%20${name}" target="_blank" class="btn btn-secondary">📱 WhatsApp</a>
+                    </div>
+                </div>
+            `;
+            document.getElementById('productModal').style.display = 'block';
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').style.display = 'none';
+        }
+
+        function openChatModal(productId, sellerId, seller, phone) {
+            if (!currentUser) {
+                alert('Please login to message');
+                showSection('login');
+                return;
+            }
+            alert(`Chat feature demo: Would open chat with ${seller} (${phone})`);
+        }
+
+        // ========== SELLER PRODUCTS ==========
+        function handleAddProduct(e) {
+            e.preventDefault();
+
+            const productName = document.getElementById('productName').value;
+            const description = document.getElementById('description').value;
+            const category = document.getElementById('category').value;
+            const price = parseFloat(document.getElementById('price').value);
+
+            const errorDiv = document.getElementById('addProductError');
+            const successDiv = document.getElementById('addProductSuccess');
+
+            if (!productName || !description || !category || price <= 0) {
+                errorDiv.textContent = 'All fields are required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            const newProduct = {
+                seller_id: currentUser.id,
+                product_name: productName,
+                description,
+                category,
+                price,
+                seller_name: currentUser.username,
+                phone_number: currentUser.phone,
+                location: currentUser.location,
+                availability: 'available'
+            };
+
+            Store.addProduct(newProduct);
+            successDiv.textContent = 'Product added successfully!';
+            successDiv.style.display = 'block';
+
+            document.getElementById('productName').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('category').value = '';
+            document.getElementById('price').value = '';
+            errorDiv.style.display = 'none';
+
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+                loadSellerProducts();
+            }, 1500);
+        }
+
+        function loadSellerProducts() {
+            if (!currentUser) return;
+            const products = Store.getSellerProducts(currentUser.id);
+            const grid = document.getElementById('myProductsGrid');
+
+            if (products.length === 0) {
+                grid.innerHTML = '<p class="no-data">You haven\'t added any products yet</p>';
+                return;
+            }
+
+            grid.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <div class="product-image">📦</div>
+                    <div class="product-info">
+                        <h3>${p.product_name}</h3>
+                        <p class="product-category">${p.category}</p>
+                        <p class="product-description">${p.description.substring(0, 80)}...</p>
+                        <div class="product-footer">
+                            <span class="product-price">KES ${p.price}</span>
+                            <span class="product-seller">${p.availability}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ========== INITIALIZATION ==========
+        window.addEventListener('load', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light-theme';
+            document.body.className = savedTheme;
+
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateNavigation();
+            } else {
+                updateNavigation();
+            }
+        });
+    </script>
+</body>
+</html>
