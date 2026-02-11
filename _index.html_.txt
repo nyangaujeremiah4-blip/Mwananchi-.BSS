@@ -1,0 +1,1801 @@
+<?php
+session_start();
+
+// Database Configuration
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'mbss_db');
+
+// Create connection
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$conn->set_charset("utf8");
+
+$logged_in = isset($_SESSION['user_id']);
+$username = $_SESSION['username'] ?? '';
+$user_id = $_SESSION['user_id'] ?? '';
+$role = $_SESSION['role'] ?? '';
+
+// Handle AJAX requests
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    // LOGIN
+    if ($action == 'login') {
+        $username_login = $_POST['username'] ?? '';
+        $password_login = $_POST['password'] ?? '';
+
+        $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
+        $stmt->bind_param("s", $username_login);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows == 1) {
+            $user = $result->fetch_assoc();
+            if (password_verify($password_login, $user['password'])) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['role'] = $user['role'];
+                echo json_encode(['success' => true, 'message' => 'Login successful']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Invalid password']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'User not found']);
+        }
+        exit;
+    }
+
+    // REGISTER
+    if ($action == 'register') {
+        $username_reg = $_POST['username'] ?? '';
+        $email = $_POST['email'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $role_reg = $_POST['role'] ?? '';
+        $phone = $_POST['phone'] ?? '';
+        $location = $_POST['location'] ?? '';
+
+        if (empty($username_reg) || empty($email) || empty($password) || empty($role_reg)) {
+            echo json_encode(['success' => false, 'message' => 'All required fields must be filled']);
+            exit;
+        }
+
+        $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+        $stmt->bind_param("ss", $username_reg, $email);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            echo json_encode(['success' => false, 'message' => 'Username or email already exists']);
+            exit;
+        }
+
+        $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+        $stmt = $conn->prepare("INSERT INTO users (username, email, password, role, phone_number, location) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $username_reg, $email, $hashed_password, $role_reg, $phone, $location);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Account created successfully! Please login.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error creating account']);
+        }
+        exit;
+    }
+
+    // LOGOUT
+    if ($action == 'logout') {
+        session_destroy();
+        echo json_encode(['success' => true, 'message' => 'Logged out']);
+        exit;
+    }
+
+    // ADD PRODUCT (Seller)
+    if ($action == 'add_product') {
+        $product_name = $_POST['productName'] ?? '';
+        $description = $_POST['description'] ?? '';
+        $category = $_POST['category'] ?? '';
+        $price = $_POST['price'] ?? 0;
+
+        if (empty($product_name) || empty($description) || empty($category) || $price <= 0) {
+            echo json_encode(['success' => false, 'message' => 'All fields are required']);
+            exit;
+        }
+
+        $stmt = $conn->prepare("INSERT INTO products (seller_id, product_name, description, category, price, availability) VALUES (?, ?, ?, ?, ?, 'available')");
+        $stmt->bind_param("isssd", $user_id, $product_name, $description, $category, $price);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Product added successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error adding product']);
+        }
+        exit;
+    }
+
+    // SEND MESSAGE
+    if ($action == 'send_message') {
+        $buyer_id = $_POST['buyer_id'] ?? 0;
+        $seller_id = $_POST['seller_id'] ?? 0;
+        $product_id = $_POST['product_id'] ?? 0;
+        $sender_id = $_POST['sender_id'] ?? 0;
+        $message = $_POST['message'] ?? '';
+
+        $stmt = $conn->prepare("INSERT INTO chats (buyer_id, seller_id, product_id, sender_id, message, message_type) VALUES (?, ?, ?, ?, ?, 'text')");
+        $stmt->bind_param("iiiis", $buyer_id, $seller_id, $product_id, $sender_id, $message);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Message sent']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error sending message']);
+        }
+        exit;
+    }
+
+    // AGREE TO MEET
+    if ($action == 'agree_meet') {
+        $buyer_id = $_POST['buyer_id'] ?? 0;
+        $seller_id = $_POST['seller_id'] ?? 0;
+        $product_id = $_POST['product_id'] ?? 0;
+
+        $stmt = $conn->prepare("UPDATE chats SET meet_agreed = 1, message_type = 'agreement' WHERE buyer_id = ? AND seller_id = ? AND product_id = ? LIMIT 1");
+        $stmt->bind_param("iii", $buyer_id, $seller_id, $product_id);
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Meet agreement recorded']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error recording agreement']);
+        }
+        exit;
+    }
+}
+
+// Handle GET requests
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    $action = $_GET['action'] ?? '';
+
+    // SEARCH PRODUCTS
+    if ($action == 'search') {
+        $keyword = $_GET['keyword'] ?? '';
+        $category = $_GET['category'] ?? '';
+        $limit = $_GET['limit'] ?? 20;
+
+        $keyword = strtolower(trim($keyword));
+        $keyword_param = "%$keyword%";
+
+        $query = "
+            SELECT 
+                p.id, p.product_name, p.description, p.category, p.price, p.availability,
+                u.id AS seller_id, u.username AS seller_name, u.phone_number, u.location,
+                CASE 
+                    WHEN LOWER(p.product_name) LIKE LOWER(?) THEN 3
+                    WHEN LOWER(p.description) LIKE LOWER(?) THEN 2
+                    WHEN LOWER(p.category) LIKE LOWER(?) THEN 1
+                    ELSE 0
+                END AS relevance
+            FROM products p
+            JOIN users u ON p.seller_id = u.id
+            WHERE p.availability = 'available' AND
+                (LOWER(p.product_name) LIKE LOWER(?) OR 
+                 LOWER(p.description) LIKE LOWER(?) OR 
+                 LOWER(p.category) LIKE LOWER(?))
+        ";
+
+        if (!empty($category)) {
+            $query .= " AND LOWER(p.category) = LOWER(?)";
+        }
+
+        $query .= " ORDER BY relevance DESC LIMIT ?";
+
+        $stmt = $conn->prepare($query);
+
+        if (!empty($category)) {
+            $stmt->bind_param("ssssssi", $keyword_param, $keyword_param, $keyword_param, 
+                             $keyword_param, $keyword_param, $keyword_param, $category, $limit);
+        } else {
+            $stmt->bind_param("sssssi", $keyword_param, $keyword_param, $keyword_param, 
+                             $keyword_param, $keyword_param, $keyword_param, $limit);
+        }
+
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $products = [];
+        while ($row = $result->fetch_assoc()) {
+            $products[] = $row;
+        }
+        echo json_encode(['success' => true, 'data' => $products]);
+        exit;
+    }
+
+    // GET ALL PRODUCTS
+    if ($action == 'all') {
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+        $stmt = $conn->prepare("
+            SELECT p.id, p.product_name, p.description, p.category, p.price,
+                   u.id AS seller_id, u.username AS seller_name, u.phone_number, u.location
+            FROM products p
+            JOIN users u ON p.seller_id = u.id
+            WHERE p.availability = 'available'
+            ORDER BY p.created_at DESC
+            LIMIT ? OFFSET ?
+        ");
+
+        $stmt->bind_param("ii", $limit, $offset);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $products = [];
+        while ($row = $result->fetch_assoc()) {
+            $products[] = $row;
+        }
+        echo json_encode(['success' => true, 'data' => $products]);
+        exit;
+    }
+
+    // GET CATEGORIES
+    if ($action == 'categories') {
+        $result = $conn->query("SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category ASC");
+        $categories = [];
+        while ($row = $result->fetch_assoc()) {
+            $categories[] = $row['category'];
+        }
+        echo json_encode(['success' => true, 'data' => $categories]);
+        exit;
+    }
+
+    // GET CHAT HISTORY
+    if ($action == 'chat_history') {
+        $buyer_id = $_GET['buyer_id'] ?? 0;
+        $seller_id = $_GET['seller_id'] ?? 0;
+        $product_id = $_GET['product_id'] ?? 0;
+
+        $stmt = $conn->prepare("
+            SELECT c.id, c.message, c.sender_id, u.username, c.created_at
+            FROM chats c
+            JOIN users u ON c.sender_id = u.id
+            WHERE c.product_id = ? AND 
+                  ((c.buyer_id = ? AND c.seller_id = ?) OR (c.buyer_id = ? AND c.seller_id = ?))
+            ORDER BY c.created_at ASC
+        ");
+
+        $stmt->bind_param("iiiii", $product_id, $buyer_id, $seller_id, $seller_id, $buyer_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $messages = [];
+        while ($row = $result->fetch_assoc()) {
+            $messages[] = $row;
+        }
+        echo json_encode(['success' => true, 'data' => $messages]);
+        exit;
+    }
+
+    // GET SELLER PRODUCTS
+    if ($action == 'seller_products') {
+        $seller_id = $_GET['seller_id'] ?? 0;
+
+        $stmt = $conn->prepare("
+            SELECT id, product_name, description, category, price, availability
+            FROM products
+            WHERE seller_id = ?
+            ORDER BY created_at DESC
+        ");
+
+        $stmt->bind_param("i", $seller_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $products = [];
+        while ($row = $result->fetch_assoc()) {
+            $products[] = $row;
+        }
+        echo json_encode(['success' => true, 'data' => $products]);
+        exit;
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $logged_in ? 'Dashboard - MBSS' : 'MBSS'; ?></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2ecc71;
+            --secondary-color: #3498db;
+            --danger-color: #e74c3c;
+            --success-color: #27ae60;
+            --text-color: #2c3e50;
+            --text-light: #7f8c8d;
+            --bg-light: #ecf0f1;
+            --bg-white: #ffffff;
+            --border-color: #bdc3c7;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-theme {
+            --text-color: #ecf0f1;
+            --text-light: #bdc3c7;
+            --bg-light: #2c3e50;
+            --bg-white: #34495e;
+            --border-color: #7f8c8d;
+        }
+
+        body.neon-theme {
+            --primary-color: #00ff00;
+            --secondary-color: #00ffff;
+            --danger-color: #ff0080;
+            --text-color: #00ff00;
+            --bg-light: #0a0e27;
+            --bg-white: #1a1f3a;
+        }
+
+        html, body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-light);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        /* Navbar */
+        .navbar {
+            background-color: var(--bg-white);
+            padding: 15px 0;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+        }
+
+        .logo-text {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 25px;
+            align-items: center;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-color);
+            transition: all 0.3s ease;
+            font-weight: 500;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .user-welcome {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .theme-toggle {
+            margin-left: 20px;
+        }
+
+        .theme-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .theme-btn:hover {
+            transform: rotate(20deg);
+        }
+
+        /* Hero Section */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+
+        .hero-content h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .hero-subtitle {
+            font-size: 24px;
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+
+        .hero-description {
+            font-size: 16px;
+            color: var(--text-color);
+            margin-bottom: 30px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .hero-illustration {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 200px;
+            animation: bounce 3s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-lg {
+            padding: 15px 40px;
+            font-size: 18px;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        /* Features Section */
+        .features {
+            background: var(--bg-white);
+            padding: 80px 20px;
+            margin: 60px 0;
+        }
+
+        .section-title {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 50px;
+            color: var(--text-color);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: var(--bg-light);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-10px);
+            box-shadow: 0 10px 30px rgba(46, 204, 113, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: var(--text-light);
+        }
+
+        /* Auth Container */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 100px);
+            padding: 20px;
+        }
+
+        .auth-box {
+            background: var(--bg-white);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .auth-header p {
+            color: var(--text-light);
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background-color: var(--bg-light);
+            color: var(--text-color);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.2);
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: var(--danger-color);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid var(--danger-color);
+            display: none;
+        }
+
+        .success-message {
+            background: #e6ffe6;
+            color: var(--success-color);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid var(--success-color);
+            display: none;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-light);
+        }
+
+        .auth-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Dashboard */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .dashboard-sidebar {
+            background: var(--bg-white);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            height: fit-content;
+            position: sticky;
+            top: 80px;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .menu-list {
+            list-style: none;
+        }
+
+        .menu-link {
+            display: block;
+            padding: 12px 15px;
+            text-decoration: none;
+            color: var(--text-color);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .menu-link:hover,
+        .menu-link.active {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .dashboard-main {
+            background: var(--bg-white);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .dashboard-section {
+            display: none;
+        }
+
+        .dashboard-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 15px;
+        }
+
+        .section-header h2 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .section-header p {
+            color: var(--text-light);
+        }
+
+        /* Search Container */
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .category-filter {
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background-color: var(--bg-light);
+            color: var(--text-color);
+        }
+
+        .category-filter:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* Products Grid */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            background: var(--bg-light);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 30px rgba(46, 204, 113, 0.2);
+        }
+
+        .product-image {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+        }
+
+        .product-info {
+            padding: 20px;
+        }
+
+        .product-info h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        .product-category {
+            display: inline-block;
+            background: var(--primary-color);
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .product-description {
+            color: var(--text-light);
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .product-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .product-price {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 16px;
+        }
+
+        .product-seller {
+            color: var(--text-light);
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-light);
+            padding: 40px 20px;
+            font-size: 16px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background-color: var(--bg-white);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--danger-color);
+        }
+
+        /* Product Detail */
+        .product-detail-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .product-detail-image {
+            font-size: 100px;
+            text-align: center;
+        }
+
+        .product-detail-content h2 {
+            font-size: 28px;
+            color: var(--text-color);
+        }
+
+        .product-category-badge {
+            display: inline-block;
+            background: var(--primary-color);
+            color: #000;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .product-full-description {
+            color: var(--text-light);
+            line-height: 1.8;
+        }
+
+        .product-meta {
+            background: var(--bg-light);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .meta-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .meta-value {
+            color: var(--text-light);
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .product-actions .btn {
+            flex: 1;
+        }
+
+        /* Chat */
+        .chat-box {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .chat-box h3 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .chat-messages {
+            background: var(--bg-light);
+            padding: 20px;
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-message {
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .chat-message.sent {
+            background: var(--primary-color);
+            color: #000;
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .chat-message.received {
+            background: var(--secondary-color);
+            color: white;
+            align-self: flex-start;
+        }
+
+        .chat-message strong {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+
+        .chat-message small {
+            display: block;
+            font-size: 11px;
+            margin-top: 5px;
+            opacity: 0.7;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .chat-box > .btn {
+            width: 100%;
+        }
+
+        /* Product Form */
+        .product-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 500px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--bg-white);
+            padding: 30px 20px;
+            text-align: center;
+            color: var(--text-light);
+            margin-top: 60px;
+        }
+
+        /* Snowflakes */
+        .snowflakes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .snowflake {
+            position: fixed;
+            top: -10px;
+            z-index: -1;
+            user-select: none;
+            cursor: default;
+            animation: snowfall linear forwards;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        @keyframes snowfall {
+            to {
+                transform: translateY(100vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-sidebar {
+                position: relative;
+                top: 0;
+            }
+
+            .hero {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-illustration {
+                font-size: 100px;
+            }
+
+            .hero-content h1 {
+                font-size: 32px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                gap: 10px;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .product-actions {
+                flex-direction: column;
+            }
+
+            .chat-message {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <!-- Snowflakes Container -->
+    <div class="snowflakes"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo" onclick="goHome()">
+                <span class="logo-icon">🏪</span>
+                <span class="logo-text">MBSS</span>
+            </div>
+            <ul class="nav-links" id="navLinks">
+                <?php if ($logged_in): ?>
+                    <li><span class="user-welcome">Welcome, <?php echo htmlspecialchars($username); ?> (<?php echo ucfirst($role); ?>)</span></li>
+                    <li><a class="nav-link" onclick="logoutUser()">Logout</a></li>
+                <?php else: ?>
+                    <li><a class="nav-link" onclick="showSection('login')">Login</a></li>
+                    <li><a class="nav-link" onclick="showSection('register')">Register</a></li>
+                <?php endif; ?>
+            </ul>
+            <div class="theme-toggle">
+                <button class="theme-btn" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div id="mainContent">
+        <?php if (!$logged_in): ?>
+            <!-- HOME PAGE -->
+            <section id="home" class="dashboard-section active">
+                <div class="hero">
+                    <div class="hero-content">
+                        <h1>Mwananchi Business Support System</h1>
+                        <p class="hero-subtitle">Connecting Local Buyers and Sellers</p>
+                        <p class="hero-description">
+                            Empowering mama mboga, jua kali artisans, and youth entrepreneurs with a secure digital marketplace.
+                        </p>
+                        <div class="hero-buttons">
+                            <button onclick="showSection('login')" class="btn btn-primary btn-lg">Login</button>
+                            <button onclick="showSection('register')" class="btn btn-secondary btn-lg">Register</button>
+                        </div>
+                    </div>
+                    <div class="hero-illustration">🛍️</div>
+                </div>
+
+                <section class="features">
+                    <h2 class="section-title">Why Choose MBSS?</h2>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">🔍</div>
+                            <h3>Smart Search</h3>
+                            <p>Find products instantly with intelligent keyword-based search</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">💬</div>
+                            <h3>Secure Messaging</h3>
+                            <p>Chat safely with buyers and sellers directly in the platform</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📱</div>
+                            <h3>WhatsApp Integration</h3>
+                            <p>Transition smoothly to WhatsApp for meetups and transactions</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🌐</div>
+                            <h3>Works Offline</h3>
+                            <p>Access on localhost - perfect for low-bandwidth areas</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📦</div>
+                            <h3>Easy Listing</h3>
+                            <p>Sell your products with simple, intuitive listing process</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎨</div>
+                            <h3>Beautiful Design</h3>
+                            <p>Light, Dark, and Neon modes for every user preference</p>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <!-- LOGIN PAGE -->
+            <section id="login" class="dashboard-section">
+                <div class="auth-container">
+                    <div class="auth-box">
+                        <div class="auth-header">
+                            <h1>Welcome Back</h1>
+                            <p>Login to your MBSS account</p>
+                        </div>
+
+                        <form class="auth-form" onsubmit="handleLogin(event)">
+                            <div class="form-group">
+                                <label for="loginUsername">Username</label>
+                                <input type="text" id="loginUsername" required placeholder="Enter your username">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="loginPassword">Password</label>
+                                <input type="password" id="loginPassword" required placeholder="Enter your password">
+                            </div>
+
+                            <div id="loginError" class="error-message"></div>
+                            <div id="loginSuccess" class="success-message"></div>
+
+                            <button type="submit" class="btn btn-primary btn-block">Login</button>
+                        </form>
+
+                        <div class="auth-footer">
+                            <p>Don't have an account? <a onclick="showSection('register')">Register here</a></p>
+                            <p><a onclick="showSection('home')">Back to Home</a></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- REGISTER PAGE -->
+            <section id="register" class="dashboard-section">
+                <div class="auth-container">
+                    <div class="auth-box">
+                        <div class="auth-header">
+                            <h1>Create Account</h1>
+                            <p>Join MBSS and start trading today</p>
+                        </div>
+
+                        <form class="auth-form" onsubmit="handleRegister(event)">
+                            <div class="form-group">
+                                <label for="regUsername">Username</label>
+                                <input type="text" id="regUsername" required placeholder="Choose a username">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regEmail">Email</label>
+                                <input type="email" id="regEmail" required placeholder="Enter your email">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regPassword">Password</label>
+                                <input type="password" id="regPassword" required placeholder="Create a password">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regRole">I am a:</label>
+                                <select id="regRole" required>
+                                    <option value="">-- Select --</option>
+                                    <option value="buyer">Buyer</option>
+                                    <option value="seller">Seller</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regPhone">Phone Number</label>
+                                <input type="tel" id="regPhone" placeholder="Your phone number">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regLocation">Location</label>
+                                <input type="text" id="regLocation" placeholder="Your location (e.g., Nairobi)">
+                            </div>
+
+                            <div id="regError" class="error-message"></div>
+                            <div id="regSuccess" class="success-message"></div>
+
+                            <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+                        </form>
+
+                        <div class="auth-footer">
+                            <p>Already have an account? <a onclick="showSection('login')">Login here</a></p>
+                            <p><a onclick="showSection('home')">Back to Home</a></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        <?php else: ?>
+            <!-- DASHBOARD -->
+            <div class="dashboard-container">
+                <aside class="dashboard-sidebar">
+                    <div class="sidebar-menu">
+                        <h3 class="sidebar-title">Menu</h3>
+                        <ul class="menu-list">
+                            <li><a onclick="showDashSection('explore')" class="menu-link active">🔍 Explore Products</a></li>
+                            <?php if ($role === 'seller'): ?>
+                                <li><a onclick="showDashSection('myproducts')" class="menu-link">📦 My Products</a></li>
+                                <li><a onclick="showDashSection('addproduct')" class="menu-link">➕ Add Product</a></li>
+                            <?php endif; ?>
+                            <li><a onclick="showDashSection('chats')" class="menu-link">💬 Messages</a></li>
+                        </ul>
+                    </div>
+                </aside>
+
+                <main class="dashboard-main">
+                    <!-- EXPLORE SECTION -->
+                    <section id="explore" class="dashboard-section active">
+                        <div class="section-header">
+                            <h2>Explore Products</h2>
+                            <p>Discover amazing products from local sellers</p>
+                        </div>
+
+                        <div class="search-container">
+                            <input type="text" id="searchInput" placeholder="Search for products..." class="search-input">
+                            <select id="categoryFilter" class="category-filter">
+                                <option value="">All Categories</option>
+                            </select>
+                            <button onclick="performSearch()" class="btn btn-primary">Search</button>
+                        </div>
+
+                        <div id="productsGrid" class="products-grid">
+                            <div class="loading-spinner">Loading products...</div>
+                        </div>
+                    </section>
+
+                    <!-- MY PRODUCTS SECTION (Seller Only) -->
+                    <?php if ($role === 'seller'): ?>
+                    <section id="myproducts" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>My Products</h2>
+                            <p>Manage your product listings</p>
+                        </div>
+                        <div id="myProductsGrid" class="products-grid">
+                            <div class="loading-spinner">Loading your products...</div>
+                        </div>
+                    </section>
+
+                    <!-- ADD PRODUCT SECTION (Seller Only) -->
+                    <section id="addproduct" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Add New Product</h2>
+                            <p>List your product and start selling</p>
+                        </div>
+                        
+                        <form id="addProductForm" class="product-form" onsubmit="handleAddProduct(event)">
+                            <div class="form-group">
+                                <label for="productName">Product Name *</label>
+                                <input type="text" id="productName" required placeholder="e.g., Fresh Tomatoes">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="description">Description *</label>
+                                <textarea id="description" required placeholder="Describe your product..." style="min-height: 100px;"></textarea>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="category">Category *</label>
+                                    <input type="text" id="category" required placeholder="e.g., Vegetables">
+                                </div>
+                                <div class="form-group">
+                                    <label for="price">Price (KES) *</label>
+                                    <input type="number" id="price" required placeholder="100">
+                                </div>
+                            </div>
+
+                            <div id="addProductError" class="error-message"></div>
+                            <div id="addProductSuccess" class="success-message"></div>
+
+                            <button type="submit" class="btn btn-primary">Add Product</button>
+                        </form>
+                    </section>
+                    <?php endif; ?>
+
+                    <!-- MESSAGES SECTION -->
+                    <section id="chats" class="dashboard-section">
+                        <div class="section-header">
+                            <h2>Messages</h2>
+                            <p>Chat with buyers and sellers</p>
+                        </div>
+                        <div id="messagesContainer" class="messages-container">
+                            <p class="no-data">No messages yet. Start a conversation by viewing a product!</p>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeProductModal()">&times;</span>
+            <div id="productDetail" class="product-detail-content"></div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chatModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeChatModal()">&times;</span>
+            <div id="chatDetail" class="chat-detail"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 Mwananchi Business Support System. All rights reserved.</p>
+        <p>Making local commerce digital, accessible, and profitable.</p>
+    </footer>
+
+    <script>
+        const userId = <?php echo $logged_in ? $user_id : 'null'; ?>;
+        const userRole = '<?php echo $logged_in ? $role : ''; ?>';
+        const isLoggedIn = <?php echo $logged_in ? 'true' : 'false'; ?>;
+
+        // THEME MANAGEMENT
+        function toggleTheme() {
+            const body = document.body;
+            const themes = ['light-theme', 'dark-theme', 'neon-theme'];
+            let currentIndex = -1;
+
+            themes.forEach((theme, index) => {
+                if (body.classList.contains(theme)) {
+                    currentIndex = index;
+                }
+            });
+
+            body.classList.remove(...themes);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            body.classList.add(themes[nextIndex]);
+            localStorage.setItem('theme', themes[nextIndex]);
+        }
+
+        // Load saved theme
+        window.addEventListener('load', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light-theme';
+            document.body.className = savedTheme;
+            
+            if (isLoggedIn) {
+                loadCategories();
+                loadAllProducts();
+            }
+            
+            createSnowflakes();
+        });
+
+        // SNOWFLAKES
+        function createSnowflakes() {
+            const container = document.querySelector('.snowflakes');
+            for (let i = 0; i < 20; i++) {
+                const snowflake = document.createElement('div');
+                snowflake.className = 'snowflake';
+                snowflake.textContent = '❄';
+                snowflake.style.left = Math.random() * window.innerWidth + 'px';
+                snowflake.style.animationDuration = (3 + Math.random() * 4) + 's';
+                snowflake.style.animationDelay = Math.random() * 2 + 's';
+                snowflake.style.fontSize = (10 + Math.random() * 20) + 'px';
+                container.appendChild(snowflake);
+
+                setTimeout(() => {
+                    snowflake.remove();
+                    createSnowflakes();
+                }, (3 + Math.random() * 4) * 1000);
+            }
+        }
+
+        // NAVIGATION
+        function goHome() {
+            showSection('home');
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.dashboard-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+        }
+
+        function showDashSection(sectionId) {
+            document.querySelectorAll('.dashboard-section').forEach(s => {
+                s.classList.remove('active');
+            });
+            document.querySelectorAll('.menu-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+
+            if (sectionId === 'myproducts') {
+                loadSellerProducts();
+            }
+        }
+
+        // AUTH HANDLERS
+        function handleLogin(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const formData = new FormData();
+            formData.append('action', 'login');
+            formData.append('username', username);
+            formData.append('password', password);
+
+            fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                const errDiv = document.getElementById('loginError');
+                const sucDiv = document.getElementById('loginSuccess');
+                
+                if (data.success) {
+                    sucDiv.textContent = data.message;
+                    sucDiv.style.display = 'block';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    errDiv.textContent = data.message;
+                    errDiv.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                document.getElementById('loginError').textContent = 'Error: ' + err.message;
+                document.getElementById('loginError').style.display = 'block';
+                console.error(err);
+            });
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const role = document.getElementById('regRole').value;
+            const phone = document.getElementById('regPhone').value;
+            const location = document.getElementById('regLocation').value;
+
+            const formData = new FormData();
+            formData.append('action', 'register');
+            formData.append('username', username);
+            formData.append('email', email);
+            formData.append('password', password);
+            formData.append('role', role);
+            formData.append('phone', phone);
+            formData.append('location', location);
+
+            fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                const errDiv = document.getElementById('regError');
+                const sucDiv = document.getElementById('regSuccess');
+                
+                if (data.success) {
+                    sucDiv.textContent = data.message;
+                    sucDiv.style.display = 'block';
+                    setTimeout(() => showSection('login'), 2000);
+                } else {
+                    errDiv.textContent = data.message;
+                    errDiv.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                document.getElementById('regError').textContent = 'Error: ' + err.message;
+                document.getElementById('regError').style.display = 'block';
+                console.error(err);
+            });
+        }
+
+        function logoutUser() {
+            const formData = new FormData();
+            formData.append('action', 'logout');
+
+            fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                location.reload();
+            });
+        }
+
+        // PRODUCTS
+        function loadCategories() {
+            fetch(window.location.pathname + '?action=categories')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.data.length > 0) {
+                        const select = document.getElementById('categoryFilter');
+                        data.data.forEach(cat => {
+                            const opt = document.createElement('option');
+                            opt.value = cat;
+                            opt.textContent = cat;
+                            select.appendChild(opt);
+                        });
+                    }
+                });
+        }
+
+        function loadAllProducts() {
+            fetch(window.location.pathname + '?action=all&limit=20')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        displayProducts(data.data);
+                    }
+                });
+        }
+
+        function performSearch() {
+            const keyword = document.getElementById('searchInput').value;
+            const category = document.getElementById('categoryFilter').value;
+
+            if (!keyword.trim()) {
+                alert('Enter a search term');
+                return;
+            }
+
+            fetch(window.location.pathname + `?action=search&keyword=${encodeURIComponent(keyword)}&category=${encodeURIComponent(category)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        displayProducts(data.data);
+                    }
+                });
+        }
+
+        function displayProducts(products) {
+            const grid = document.getElementById('productsGrid');
+
+            if (products.length === 0) {
+                grid.innerHTML = '<p class="no-data">No products found</p>';
+                return;
+            }
+
+            grid.innerHTML = products.map(p => `
+                <div class="product-card" onclick="openProductModal(${p.id}, ${p.seller_id}, '${p.product_name.replace(/'/g, "\\'")}', '${p.description.replace(/'/g, "\\'")}', '${p.category}', ${p.price}, '${p.seller_name}', '${p.phone_number}', '${p.location}')">
+                    <div class="product-image">📦</div>
+                    <div class="product-info">
+                        <h3>${p.product_name}</h3>
+                        <p class="product-category">${p.category}</p>
+                        <p class="product-description">${p.description.substring(0, 80)}...</p>
+                        <div class="product-footer">
+                            <span class="product-price">KES ${p.price}</span>
+                            <span class="product-seller">${p.seller_name}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openProductModal(id, sellerId, name, desc, cat, price, seller, phone, loc) {
+            const detail = document.getElementById('productDetail');
+            detail.innerHTML = `
+                <div class="product-detail-content">
+                    <div class="product-detail-image">📦</div>
+                    <h2>${name}</h2>
+                    <p class="product-category-badge">${cat}</p>
+                    <p class="product-full-description">${desc}</p>
+                    <div class="product-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Price:</span>
+                            <span class="meta-value">KES ${price}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Seller:</span>
+                            <span class="meta-value">${seller}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Location:</span>
+                            <span class="meta-value">${loc}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Phone:</span>
+                            <span class="meta-value">${phone}</span>
+                        </div>
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn btn-primary" onclick="openChatModal(${id}, ${sellerId}, '${seller}', '${phone}')">💬 Message</button>
+                        <a href="https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=Hi%20${seller}%2C%20I'm%20interested%20in%20${name}" target="_blank" class="btn btn-secondary">📱 WhatsApp</a>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('productModal').style.display = 'block';
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').style.display = 'none';
+        }
+
+        function openChatModal(
